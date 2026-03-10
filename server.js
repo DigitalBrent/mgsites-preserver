@@ -14,7 +14,7 @@ const express = require('express');
 const path = require('path');
 const os = require('os');
 const fs = require('fs');
-const { v4: uuidv4 } = require('uuid');
+const crypto = require('crypto');
 const archiver = require('archiver');
 const { createPreserver } = require('./src/index');
 
@@ -59,7 +59,7 @@ app.post('/api/preserve', (req, res) => {
       .json({ error: 'A crawl is already in progress. Please wait.' });
   }
 
-  const jobId = uuidv4();
+  const jobId = crypto.randomUUID();
   const jobDir = path.join(os.tmpdir(), `mgsites-${jobId}`);
   const outputDir = path.join(jobDir, 'output');
   const zipPath = path.join(jobDir, 'archive.zip');
