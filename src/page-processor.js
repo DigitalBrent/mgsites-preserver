@@ -20,7 +20,6 @@ class PageProcessor {
       '--disable-default-apps',
       '--disable-sync',
       '--disable-translate',
-      '--single-process',
     ];
     if (this.config.ignoreSslErrors) {
       args.push('--ignore-certificate-errors');

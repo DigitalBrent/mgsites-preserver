@@ -1,5 +1,15 @@
 'use strict';
 
+// Prevent unhandled errors from crashing the server — set up FIRST
+process.on('unhandledRejection', (reason) => {
+  console.error('Unhandled Rejection:', reason);
+});
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught Exception:', err);
+});
+
+console.log('Starting server...');
+
 const express = require('express');
 const path = require('path');
 const os = require('os');
@@ -8,18 +18,16 @@ const { v4: uuidv4 } = require('uuid');
 const archiver = require('archiver');
 const { createPreserver } = require('./src/index');
 
-// Prevent unhandled errors from crashing the server
-process.on('unhandledRejection', (reason, promise) => {
-  console.error('Unhandled Rejection:', reason);
-});
-process.on('uncaughtException', (err) => {
-  console.error('Uncaught Exception:', err);
-  // Don't exit — keep the server running
-});
+console.log('Modules loaded OK');
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = parseInt(process.env.PORT, 10) || 3000;
 const MAX_CRAWL_TIME = 10 * 60 * 1000; // 10 minutes max per crawl
+
+// Explicit health check — doesn't depend on static files
+app.get('/health', (req, res) => {
+  res.status(200).json({ status: 'ok' });
+});
 
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
@@ -289,6 +297,6 @@ setInterval(() => {
   }
 }, 30 * 60 * 1000);
 
-app.listen(PORT, () => {
-  console.log(`MGSites Preserver running at http://localhost:${PORT}`);
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`MGSites Preserver running on port ${PORT}`);
 });
