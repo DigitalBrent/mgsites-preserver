@@ -1,0 +1,28 @@
+{
+  "name": "mgsites-preserver",
+  "version": "1.0.0",
+  "description": "Crawl and preserve entire websites as static HTML/CSS/JS for offline viewing",
+  "main": "src/index.js",
+  "bin": {
+    "mgsites-preserver": "bin/mgsites-preserver.js"
+  },
+  "scripts": {
+    "start": "node bin/mgsites-preserver.js",
+    "test": "jest"
+  },
+  "keywords": ["web", "crawler", "preserver", "static", "offline"],
+  "license": "MIT",
+  "dependencies": {
+    "chalk": "^4.1.2",
+    "cheerio": "1.0.0-rc.12",
+    "cli-progress": "^3.12.0",
+    "commander": "^9.5.0",
+    "mime-types": "^2.1.35",
+    "p-queue": "^6.6.2",
+    "puppeteer": "19.11.1",
+    "robots-parser": "^3.0.1"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0"
+  }
+}
