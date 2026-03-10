@@ -71,6 +71,34 @@ class PageProcessor {
         }
       }
 
+      // Bake computed visibility into inline styles so JS-hidden elements
+      // stay hidden when the preserved page is opened offline (no JS).
+      // At this viewport width (1280x800), the site's JS has already run
+      // and hidden mobile-only elements, scroll-triggered overlays, etc.
+      // We capture that state into inline styles before extracting HTML.
+      // Only process <body> elements — <head> elements (link, script, style, meta)
+      // always compute as display:none and we must NOT bake that in.
+      await page.evaluate(() => {
+        const body = document.body;
+        if (!body) return;
+        const all = body.querySelectorAll('*');
+        for (const el of all) {
+          try {
+            const cs = window.getComputedStyle(el);
+            // Bake display:none for elements hidden by JS/CSS at this viewport
+            if (cs.display === 'none' && el.style.display !== 'none') {
+              el.style.display = 'none';
+            }
+            // Bake visibility:hidden
+            if (cs.visibility === 'hidden' && el.style.visibility !== 'hidden') {
+              el.style.visibility = 'hidden';
+            }
+          } catch {
+            // getComputedStyle can fail on pseudo-elements, SVG, etc.
+          }
+        }
+      });
+
       // Get the fully rendered HTML
       const html = await page.content();
 

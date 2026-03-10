@@ -26,6 +26,9 @@ RUN apt-get update && apt-get install -y \
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
 ENV NODE_ENV=production
+# Many target sites (e.g. mgsites.net) use self-signed or misconfigured SSL certs.
+# This ensures the Node.js HTTPS client accepts them when downloading assets.
+ENV NODE_TLS_REJECT_UNAUTHORIZED=0
 
 WORKDIR /app
 

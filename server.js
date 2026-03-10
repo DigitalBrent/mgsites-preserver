@@ -1,5 +1,10 @@
 'use strict';
 
+// Allow HTTPS requests to sites with self-signed / misconfigured SSL certs.
+// This is critical: many preserved sites (mgsites.net, etc.) have broken SSL
+// and asset downloads will silently fail without this.
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+
 // Prevent unhandled errors from crashing the server — set up FIRST
 process.on('unhandledRejection', (reason) => {
   console.error('Unhandled Rejection:', reason);
