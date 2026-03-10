@@ -6,7 +6,7 @@ MGSites Preserver recursively crawls a website, downloads all pages and assets, 
 
 ## Features
 
-- Full website archival with configurable crawl depth (Needs Fix?)
+- Full website archival with configurable crawl depth
 - JavaScript rendering via Puppeteer (headless Chrome) or raw HTML mode
 - Comprehensive asset extraction (images, CSS, JS, fonts, media, favicons, OG images)
 - SHA-256 content-based asset deduplication
