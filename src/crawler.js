@@ -53,7 +53,7 @@ class Crawler {
   async crawl() {
     const seedUrl = this.config.seedUrl;
 
-    // Register signal handlers for graceful shutdown
+    // Register signal handlers for graceful shutdown (CLI mode only)
     const shutdown = () => {
       if (this.shuttingDown) return;
       this.shuttingDown = true;
@@ -62,8 +62,10 @@ class Crawler {
       this.pageQueue.clear();
       this.assetQueue.clear();
     };
-    process.on('SIGINT', shutdown);
-    process.on('SIGTERM', shutdown);
+    if (this.config.mode !== 'web') {
+      process.on('SIGINT', shutdown);
+      process.on('SIGTERM', shutdown);
+    }
 
     try {
       // Initialize
@@ -82,6 +84,7 @@ class Crawler {
       this.logger.info(`Output: ${this.config.output}`);
       this.logger.info(`Max depth: ${this.config.maxDepth}`);
       this.logger.startProgress();
+      this.logger.phase('crawling', 'Crawling pages...');
 
       // Seed the queue
       this._enqueue(seedUrl, 0);
@@ -107,11 +110,13 @@ class Crawler {
       }
 
       // Wait for remaining asset downloads
+      this.logger.phase('downloading', 'Downloading assets...');
       if (!this.shuttingDown) {
         await this.assetQueue.onIdle();
       }
 
       // Rewrite all HTML and CSS files now that all assets are downloaded
+      this.logger.phase('rewriting', 'Rewriting URLs...');
       if (!this.config.dryRun) {
         await this._rewriteAllPages();
       }
@@ -137,12 +142,15 @@ class Crawler {
       }
 
       // Print summary
+      this.logger.phase('done', 'Crawl complete');
       this.logger.summary(this.failedUrls);
       this.logger.info(`Output saved to: ${this.config.output}`);
     } finally {
       await this.pageProcessor.close();
-      process.removeListener('SIGINT', shutdown);
-      process.removeListener('SIGTERM', shutdown);
+      if (this.config.mode !== 'web') {
+        process.removeListener('SIGINT', shutdown);
+        process.removeListener('SIGTERM', shutdown);
+      }
     }
   }
 

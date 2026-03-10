@@ -1,4 +1,5 @@
 node_modules/
 preserved-site/
 *.log
+*.zip
 .DS_Store

@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MGSites Preserver</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>MGSites Preserver</h1>
+      <p class="subtitle">Preserve websites as static offline archives</p>
+    </header>
+
+    <form id="preserve-form">
+      <div class="input-group">
+        <input
+          type="url"
+          id="url-input"
+          placeholder="https://example.com"
+          required
+          autocomplete="url"
+        >
+        <button type="submit" id="preserve-btn">Preserve</button>
+      </div>
+    </form>
+
+    <div id="progress-section" class="hidden">
+      <div class="progress-bar-container">
+        <div id="progress-bar" class="progress-bar">
+          <span id="progress-text" class="progress-text"></span>
+        </div>
+      </div>
+      <p id="status-text" class="status-text">Initializing...</p>
+      <div id="stats" class="stats">
+        <span>Pages: <span id="stat-pages">0/0</span></span>
+        <span>Assets: <span id="stat-assets">0</span></span>
+      </div>
+    </div>
+
+    <div id="download-section" class="hidden">
+      <a id="download-link" class="download-btn" href="#">Download Archive (.zip)</a>
+    </div>
+
+    <div id="error-section" class="hidden">
+      <p id="error-text" class="error-text"></p>
+    </div>
+  </div>
+
+  <script src="/app.js"></script>
+</body>
+</html>

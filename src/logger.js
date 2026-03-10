@@ -1,11 +1,14 @@
 'use strict';
 
+const EventEmitter = require('events');
 const chalk = require('chalk');
 const cliProgress = require('cli-progress');
 
-class Logger {
+class Logger extends EventEmitter {
   constructor(config) {
+    super();
     this.verbose = config.verbose;
+    this.mode = config.mode || 'cli';
     this.pagesDiscovered = 0;
     this.pagesCrawled = 0;
     this.assetsSaved = 0;
@@ -13,7 +16,28 @@ class Logger {
     this.progressBar = null;
   }
 
+  _snapshot() {
+    return {
+      pagesDiscovered: this.pagesDiscovered,
+      pagesCrawled: this.pagesCrawled,
+      assetsSaved: this.assetsSaved,
+      assetsDeduplicated: this.assetsDeduplicated,
+      percent:
+        this.pagesDiscovered > 0
+          ? Math.round((this.pagesCrawled / this.pagesDiscovered) * 100)
+          : 0,
+    };
+  }
+
+  phase(name, message) {
+    this.emit('phase', { phase: name, message });
+    if (this.mode === 'cli') {
+      this.info(message);
+    }
+  }
+
   startProgress() {
+    if (this.mode !== 'cli') return;
     this.progressBar = new cliProgress.SingleBar(
       {
         format:
@@ -52,15 +76,21 @@ class Logger {
 
   pageCrawled(url) {
     this.pagesCrawled++;
-    this.updateProgress();
-    if (this.verbose) {
-      this.info(`Page saved: ${url}`);
+    if (this.mode === 'cli') {
+      this.updateProgress();
+      if (this.verbose) {
+        this.info(`Page saved: ${url}`);
+      }
     }
+    this.emit('progress', this._snapshot());
   }
 
   pageDiscovered(count) {
     this.pagesDiscovered += count;
-    this.updateProgress();
+    if (this.mode === 'cli') {
+      this.updateProgress();
+    }
+    this.emit('progress', this._snapshot());
   }
 
   assetSaved(url, deduplicated) {
@@ -69,14 +99,18 @@ class Logger {
     } else {
       this.assetsSaved++;
     }
-    this.updateProgress();
-    if (this.verbose) {
-      const tag = deduplicated ? ' (dedup)' : '';
-      this.info(`Asset saved${tag}: ${url}`);
+    if (this.mode === 'cli') {
+      this.updateProgress();
+      if (this.verbose) {
+        const tag = deduplicated ? ' (dedup)' : '';
+        this.info(`Asset saved${tag}: ${url}`);
+      }
     }
+    this.emit('progress', this._snapshot());
   }
 
   info(msg) {
+    if (this.mode !== 'cli') return;
     if (this.progressBar) this.progressBar.stop();
     console.log(chalk.blue('  info ') + msg);
     if (this.progressBar) {
@@ -89,6 +123,7 @@ class Logger {
   }
 
   warn(msg) {
+    if (this.mode !== 'cli') return;
     if (this.progressBar) this.progressBar.stop();
     console.log(chalk.yellow('  warn ') + msg);
     if (this.progressBar) {
@@ -101,6 +136,7 @@ class Logger {
   }
 
   error(msg) {
+    if (this.mode !== 'cli') return;
     if (this.progressBar) this.progressBar.stop();
     console.error(chalk.red(' error ') + msg);
     if (this.progressBar) {
@@ -113,6 +149,7 @@ class Logger {
   }
 
   summary(failedUrls) {
+    if (this.mode !== 'cli') return;
     this.stopProgress();
     console.log('');
     console.log(chalk.bold('Crawl complete.'));

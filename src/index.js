@@ -15,4 +15,15 @@ async function preserve(url, opts = {}) {
   await crawler.crawl();
 }
 
-module.exports = { preserve };
+/**
+ * Create a preserver instance without starting it.
+ * Useful for web mode where the server needs access to the crawler/logger
+ * before calling crawl().
+ */
+function createPreserver(url, opts = {}) {
+  const config = createConfig(url, opts);
+  const crawler = new Crawler(config);
+  return { crawler, config };
+}
+
+module.exports = { preserve, createPreserver };

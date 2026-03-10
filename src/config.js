@@ -18,6 +18,7 @@ const DEFAULTS = {
   exclude: [],
   verbose: false,
   dryRun: false,
+  mode: 'cli',
 };
 
 function createConfig(url, opts = {}) {

@@ -18,10 +18,14 @@ class PageProcessor {
     if (this.config.ignoreSslErrors) {
       args.push('--ignore-certificate-errors');
     }
-    this.browser = await puppeteer.launch({
+    const launchOpts = {
       headless: 'new',
       args,
-    });
+    };
+    if (process.env.PUPPETEER_EXECUTABLE_PATH) {
+      launchOpts.executablePath = process.env.PUPPETEER_EXECUTABLE_PATH;
+    }
+    this.browser = await puppeteer.launch(launchOpts);
   }
 
   async processPage(url) {

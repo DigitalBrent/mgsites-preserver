@@ -1,0 +1,170 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+    Oxygen-Sans, Ubuntu, Cantarell, 'Helvetica Neue', sans-serif;
+  background: #0f0f1a;
+  color: #e0e0e0;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.container {
+  width: 100%;
+  max-width: 600px;
+  padding: 2rem;
+}
+
+header {
+  margin-bottom: 0.5rem;
+}
+
+h1 {
+  color: #ffffff;
+  font-size: 1.8rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.subtitle {
+  color: #666;
+  margin-top: 0.3rem;
+  font-size: 0.95rem;
+}
+
+/* --- Form --- */
+
+.input-group {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 2rem;
+}
+
+#url-input {
+  flex: 1;
+  padding: 0.8rem 1rem;
+  border-radius: 8px;
+  border: 1px solid #2a2a3e;
+  background: #1a1a2e;
+  color: #fff;
+  font-size: 1rem;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+#url-input:focus {
+  border-color: #4361ee;
+}
+
+#url-input::placeholder {
+  color: #555;
+}
+
+#preserve-btn {
+  padding: 0.8rem 1.6rem;
+  border-radius: 8px;
+  border: none;
+  background: #4361ee;
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s, opacity 0.2s;
+  white-space: nowrap;
+}
+
+#preserve-btn:hover {
+  background: #3651d4;
+}
+
+#preserve-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* --- Progress --- */
+
+.progress-bar-container {
+  width: 100%;
+  height: 32px;
+  background: #1a1a2e;
+  border-radius: 6px;
+  overflow: hidden;
+  margin-top: 2rem;
+  position: relative;
+}
+
+.progress-bar {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, #4361ee, #53d769);
+  border-radius: 6px;
+  transition: width 0.4s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+}
+
+.progress-text {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #fff;
+  white-space: nowrap;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+}
+
+.status-text {
+  margin-top: 0.75rem;
+  color: #999;
+  font-size: 0.9rem;
+}
+
+.stats {
+  display: flex;
+  gap: 2rem;
+  margin-top: 0.4rem;
+  color: #666;
+  font-size: 0.85rem;
+}
+
+/* --- Download --- */
+
+.download-btn {
+  display: inline-block;
+  margin-top: 1.5rem;
+  padding: 0.8rem 2rem;
+  background: #53d769;
+  color: #0f0f1a;
+  text-decoration: none;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 1rem;
+  transition: background 0.2s;
+}
+
+.download-btn:hover {
+  background: #45c55a;
+}
+
+/* --- Error --- */
+
+.error-text {
+  color: #e94560;
+  margin-top: 1rem;
+  font-size: 0.9rem;
+}
+
+/* --- Utility --- */
+
+.hidden {
+  display: none;
+}
