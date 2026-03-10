@@ -14,6 +14,13 @@ class PageProcessor {
       '--no-sandbox',
       '--disable-setuid-sandbox',
       '--disable-dev-shm-usage',
+      '--disable-gpu',
+      '--disable-extensions',
+      '--disable-background-networking',
+      '--disable-default-apps',
+      '--disable-sync',
+      '--disable-translate',
+      '--single-process',
     ];
     if (this.config.ignoreSslErrors) {
       args.push('--ignore-certificate-errors');
@@ -26,13 +33,25 @@ class PageProcessor {
       launchOpts.executablePath = process.env.PUPPETEER_EXECUTABLE_PATH;
     }
     this.browser = await puppeteer.launch(launchOpts);
+
+    // Listen for browser disconnect so we know it crashed
+    this.browser.on('disconnected', () => {
+      this.browser = null;
+    });
   }
 
   async processPage(url) {
+    // Check browser is still alive before trying
+    if (!this.browser || !this.browser.isConnected()) {
+      throw new Error('Browser closed');
+    }
+
     const page = await this.browser.newPage();
 
     try {
-      page.setDefaultNavigationTimeout(this.config.timeout);
+      // Use a capped timeout to prevent indefinite hangs
+      const pageTimeout = Math.min(this.config.timeout || 30000, 45000);
+      page.setDefaultNavigationTimeout(pageTimeout);
 
       if (this.config.userAgent) {
         await page.setUserAgent(this.config.userAgent);
@@ -40,8 +59,18 @@ class PageProcessor {
 
       await page.setViewport({ width: 1280, height: 800 });
 
-      // Navigate and wait for JS to finish rendering
-      await page.goto(url, { waitUntil: 'networkidle0' });
+      // Use networkidle2 instead of networkidle0 — idle0 hangs on sites with
+      // persistent connections (analytics pings, websockets, live chat, etc.)
+      try {
+        await page.goto(url, { waitUntil: 'networkidle2' });
+      } catch (navErr) {
+        // If navigation times out, still try to get whatever content loaded
+        if (navErr.name === 'TimeoutError' || navErr.message.includes('timeout')) {
+          // Page partially loaded — continue with what we have
+        } else {
+          throw navErr;
+        }
+      }
 
       // Get the fully rendered HTML
       const html = await page.content();
@@ -152,7 +181,13 @@ class PageProcessor {
         assetUrls: [...assetUrls],
       };
     } finally {
-      await page.close();
+      try {
+        if (!page.isClosed()) {
+          await page.close();
+        }
+      } catch {
+        // Page or browser may have already been destroyed
+      }
     }
   }
 
@@ -272,7 +307,11 @@ class PageProcessor {
 
   async close() {
     if (this.browser) {
-      await this.browser.close();
+      try {
+        await this.browser.close();
+      } catch {
+        // Browser may have already crashed / disconnected
+      }
       this.browser = null;
     }
   }
@@ -280,6 +319,10 @@ class PageProcessor {
   async relaunch() {
     await this.close();
     await this.init();
+  }
+
+  isConnected() {
+    return this.browser && this.browser.isConnected();
   }
 }
 

@@ -146,7 +146,11 @@ class Crawler {
       this.logger.summary(this.failedUrls);
       this.logger.info(`Output saved to: ${this.config.output}`);
     } finally {
-      await this.pageProcessor.close();
+      try {
+        await this.pageProcessor.close();
+      } catch {
+        // Browser may have already crashed — that's fine
+      }
       if (this.config.mode !== 'web') {
         process.removeListener('SIGINT', shutdown);
         process.removeListener('SIGTERM', shutdown);
@@ -195,11 +199,34 @@ class Crawler {
     }
   }
 
+  _isBrowserCrash(err) {
+    const msg = err.message || '';
+    return (
+      msg.includes('Target closed') ||
+      msg.includes('Session closed') ||
+      msg.includes('Browser closed') ||
+      msg.includes('Protocol error') ||
+      msg.includes('Connection closed') ||
+      msg.includes('browser has disconnected') ||
+      msg.includes('Navigation failed because browser has disconnected')
+    );
+  }
+
   async _processPage(url, depth, attempt = 1) {
+    if (this.shuttingDown) return;
+
     try {
       // Render the page
       let result;
       if (this.config.js) {
+        // Ensure browser is alive before attempting
+        if (!this.pageProcessor.isConnected()) {
+          try {
+            await this.pageProcessor.relaunch();
+          } catch (relaunchErr) {
+            throw new Error(`Browser relaunch failed: ${relaunchErr.message}`);
+          }
+        }
         result = await this.pageProcessor.processPage(url);
       } else {
         result = await this.pageProcessor.processPageRaw(url);
@@ -214,14 +241,18 @@ class Crawler {
       for (const assetUrl of result.assetUrls) {
         if (!this.assetManifest.has(assetUrl)) {
           this.assetQueue.add(async () => {
-            const subAssetUrls = await this.assetDownloader.download(assetUrl);
-            // Queue any sub-assets discovered in CSS files
-            for (const subUrl of subAssetUrls) {
-              if (!this.assetManifest.has(subUrl)) {
-                this.assetQueue.add(() =>
-                  this.assetDownloader.download(subUrl)
-                );
+            try {
+              const subAssetUrls = await this.assetDownloader.download(assetUrl);
+              // Queue any sub-assets discovered in CSS files
+              for (const subUrl of subAssetUrls) {
+                if (!this.assetManifest.has(subUrl)) {
+                  this.assetQueue.add(() =>
+                    this.assetDownloader.download(subUrl)
+                  );
+                }
               }
+            } catch (assetErr) {
+              // Swallow individual asset errors — don't crash the queue
             }
           });
         }
@@ -236,6 +267,8 @@ class Crawler {
 
       this.logger.pageCrawled(url);
     } catch (err) {
+      if (this.shuttingDown) return;
+
       if (attempt < this.config.retries) {
         const backoff = Math.min(1000 * Math.pow(2, attempt), 30000);
         this.logger.warn(
@@ -244,11 +277,7 @@ class Crawler {
         await new Promise((r) => setTimeout(r, backoff));
 
         // If Puppeteer crashed, try relaunching
-        if (
-          err.message.includes('Target closed') ||
-          err.message.includes('Session closed') ||
-          err.message.includes('Browser closed')
-        ) {
+        if (this._isBrowserCrash(err)) {
           try {
             await this.pageProcessor.relaunch();
           } catch (relaunchErr) {

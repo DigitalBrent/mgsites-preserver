@@ -8,8 +8,18 @@ const { v4: uuidv4 } = require('uuid');
 const archiver = require('archiver');
 const { createPreserver } = require('./src/index');
 
+// Prevent unhandled errors from crashing the server
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection:', reason);
+});
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught Exception:', err);
+  // Don't exit — keep the server running
+});
+
 const app = express();
 const PORT = process.env.PORT || 3000;
+const MAX_CRAWL_TIME = 10 * 60 * 1000; // 10 minutes max per crawl
 
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
@@ -78,10 +88,21 @@ app.post('/api/preserve', (req, res) => {
     broadcastSSE(job, 'progress', data);
   });
 
-  // Start crawl asynchronously
+  // Start crawl asynchronously with timeout protection
+  const crawlTimeout = setTimeout(() => {
+    if (job.status === 'running') {
+      console.error(`Crawl timed out after ${MAX_CRAWL_TIME / 1000}s for ${validUrl}`);
+      crawler.shuttingDown = true;
+    }
+  }, MAX_CRAWL_TIME);
+
+  job.crawlTimeout = crawlTimeout;
+
   crawler
     .crawl()
     .then(async () => {
+      clearTimeout(crawlTimeout);
+
       // Compression phase
       job.status = 'compressing';
       broadcastSSE(job, 'phase', {
@@ -89,7 +110,11 @@ app.post('/api/preserve', (req, res) => {
         message: 'Compressing archive...',
       });
 
-      await createZip(outputDir, zipPath);
+      try {
+        await createZip(outputDir, zipPath);
+      } catch (zipErr) {
+        throw new Error(`Zip failed: ${zipErr.message}`);
+      }
 
       // Complete
       job.status = 'complete';
@@ -99,12 +124,15 @@ app.post('/api/preserve', (req, res) => {
       activeJobId = null;
     })
     .catch((err) => {
+      clearTimeout(crawlTimeout);
+      console.error(`Crawl error for ${validUrl}:`, err);
       job.status = 'error';
       broadcastSSE(job, 'error', {
         message: err.message || 'Crawl failed',
       });
       activeJobId = null;
-      cleanupJob(jobId);
+      // Don't cleanup immediately — give the SSE time to send the error
+      setTimeout(() => cleanupJob(jobId), 10000);
     });
 
   res.json({ jobId });
@@ -142,12 +170,22 @@ app.get('/api/progress/:jobId', (req, res) => {
 
   // SSE keepalive every 15s
   const keepalive = setInterval(() => {
-    res.write(': keepalive\n\n');
+    try {
+      if (!res.writableEnded && !res.destroyed) {
+        res.write(': keepalive\n\n');
+      } else {
+        clearInterval(keepalive);
+      }
+    } catch {
+      clearInterval(keepalive);
+    }
   }, 15000);
 
   req.on('close', () => {
     clearInterval(keepalive);
-    job.sseClients = job.sseClients.filter((c) => c !== res);
+    if (job.sseClients) {
+      job.sseClients = job.sseClients.filter((c) => c !== res);
+    }
   });
 });
 
@@ -177,14 +215,20 @@ app.get('/api/download/:jobId', (req, res) => {
 // --- Helpers ---
 
 function broadcastSSE(job, eventName, data) {
+  if (!job || !job.sseClients || job.sseClients.length === 0) return;
   const message = `event: ${eventName}\ndata: ${JSON.stringify(data)}\n\n`;
-  job.sseClients.forEach((client) => {
+  const stillConnected = [];
+  for (const client of job.sseClients) {
     try {
-      client.write(message);
+      if (!client.writableEnded && !client.destroyed) {
+        client.write(message);
+        stillConnected.push(client);
+      }
     } catch {
-      // Client may have disconnected
+      // Client disconnected — drop it
     }
-  });
+  }
+  job.sseClients = stillConnected;
 }
 
 function createZip(sourceDir, destPath) {
@@ -207,6 +251,24 @@ function createZip(sourceDir, destPath) {
 function cleanupJob(jobId) {
   const job = jobs.get(jobId);
   if (!job) return;
+
+  // Clear crawl timeout if it's still pending
+  if (job.crawlTimeout) {
+    clearTimeout(job.crawlTimeout);
+    job.crawlTimeout = null;
+  }
+
+  // Close any remaining SSE clients
+  if (job.sseClients) {
+    for (const client of job.sseClients) {
+      try {
+        if (!client.writableEnded && !client.destroyed) {
+          client.end();
+        }
+      } catch {}
+    }
+    job.sseClients = [];
+  }
 
   const jobDir = path.dirname(job.outputDir);
   fs.rm(jobDir, { recursive: true, force: true }, (err) => {
