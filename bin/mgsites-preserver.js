@@ -23,6 +23,7 @@ program
   .option('--retries <n>', 'Max retry attempts for failed requests', '3')
   .option('--respect-robots', 'Honor robots.txt rules', false)
   .option('--no-js', 'Download raw HTML without Puppeteer rendering')
+  .option('--ignore-ssl-errors', 'Skip SSL certificate verification', false)
   .option('--user-agent <string>', 'Custom User-Agent string')
   .option(
     '--include-query-strings',

@@ -11,6 +11,7 @@ const DEFAULTS = {
   timeout: 30000,
   retries: 3,
   respectRobots: false,
+  ignoreSslErrors: false,
   js: true,
   userAgent: null,
   includeQueryStrings: false,

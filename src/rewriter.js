@@ -8,7 +8,7 @@ const { normalizeUrl, urlToLocalPath, assetUrlToLocalPath } = require('./url-uti
  * Rewrite all URLs in an HTML document to use relative local paths.
  */
 function rewriteHtml(html, pageUrl, assetManifest, outputDir) {
-  const $ = cheerio.load(html, { decodeEntities: false });
+  const $ = cheerio.load(html);
   const pageLocalPath = urlToLocalPath(pageUrl, outputDir);
   const pageDir = path.dirname(pageLocalPath);
 
@@ -109,8 +109,8 @@ function rewriteSingleUrl(
       normalized = absoluteUrl;
     }
 
-    // Check if we have this in the asset manifest
-    const assetEntry = assetManifest.get(normalized);
+    // Check if we have this in the asset manifest (try normalized and absolute)
+    const assetEntry = assetManifest.get(normalized) || assetManifest.get(absoluteUrl);
     if (assetEntry) {
       return path.relative(contextDir, assetEntry.localPath);
     }

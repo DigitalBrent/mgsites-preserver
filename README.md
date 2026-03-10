@@ -62,6 +62,7 @@ Options:
   --retries <n>               Max retry attempts for failed requests (default: "3")
   --respect-robots            Honor robots.txt rules (default: false)
   --no-js                     Download raw HTML without Puppeteer rendering
+  --ignore-ssl-errors         Skip SSL certificate verification (default: false)
   --user-agent <string>       Custom User-Agent string
   --include-query-strings     Treat URLs with different query strings as distinct pages
   --exclude <pattern...>      URL patterns to exclude (glob-style, repeatable)

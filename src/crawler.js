@@ -36,6 +36,9 @@ class Crawler {
       this.logger
     );
 
+    // Track saved pages for deferred HTML rewriting
+    this.savedPages = []; // Array<{ url, localPath }>
+
     this.pageQueue = new PQueue({
       concurrency: config.concurrency,
       interval: config.delay,
@@ -108,7 +111,10 @@ class Crawler {
         await this.assetQueue.onIdle();
       }
 
-      // Rewrite CSS files now that all assets are downloaded
+      // Rewrite all HTML and CSS files now that all assets are downloaded
+      if (!this.config.dryRun) {
+        await this._rewriteAllPages();
+      }
       await this.assetDownloader.rewriteCssFiles();
 
       // Write crawl report
@@ -123,6 +129,7 @@ class Crawler {
           reason: info.reason,
           attempts: info.attempts,
         })),
+        failedAssets: [...this.assetDownloader.failedAssets],
       };
 
       if (!this.config.dryRun) {
@@ -161,6 +168,25 @@ class Crawler {
     this.logger.pageDiscovered(1);
   }
 
+  async _rewriteAllPages() {
+    const fs = require('fs');
+    this.logger.info('Rewriting HTML files with local asset paths...');
+    for (const { url, localPath } of this.savedPages) {
+      try {
+        const html = await fs.promises.readFile(localPath, 'utf-8');
+        const rewrittenHtml = rewriteHtml(
+          html,
+          url,
+          this.assetManifest,
+          this.config.output
+        );
+        await fs.promises.writeFile(localPath, rewrittenHtml, 'utf-8');
+      } catch (err) {
+        this.logger.warn(`Failed to rewrite HTML: ${url} - ${err.message}`);
+      }
+    }
+  }
+
   async _processPage(url, depth, attempt = 1) {
     try {
       // Render the page
@@ -194,17 +220,10 @@ class Crawler {
       }
 
       if (!this.config.dryRun) {
-        // Rewrite HTML URLs to local paths
-        const rewrittenHtml = rewriteHtml(
-          result.html,
-          url,
-          this.assetManifest,
-          this.config.output
-        );
-
-        // Save the page
+        // Save raw HTML now; rewriting is deferred until all assets are downloaded
         const localPath = urlToLocalPath(url, this.config.output);
-        await this.storage.writePage(localPath, rewrittenHtml);
+        await this.storage.writePage(localPath, result.html);
+        this.savedPages.push({ url, localPath });
       }
 
       this.logger.pageCrawled(url);

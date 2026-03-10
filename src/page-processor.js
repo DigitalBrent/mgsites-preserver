@@ -10,13 +10,17 @@ class PageProcessor {
   }
 
   async init() {
+    const args = [
+      '--no-sandbox',
+      '--disable-setuid-sandbox',
+      '--disable-dev-shm-usage',
+    ];
+    if (this.config.ignoreSslErrors) {
+      args.push('--ignore-certificate-errors');
+    }
     this.browser = await puppeteer.launch({
       headless: 'new',
-      args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-      ],
+      args,
     });
   }
 
@@ -157,8 +161,12 @@ class PageProcessor {
 
     const html = await new Promise((resolve, reject) => {
       const mod = url.startsWith('https') ? https : http;
+      const opts = { timeout: this.config.timeout };
+      if (this.config.ignoreSslErrors) {
+        opts.rejectUnauthorized = false;
+      }
       mod
-        .get(url, { timeout: this.config.timeout }, (res) => {
+        .get(url, opts, (res) => {
           // Follow redirects
           if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
             this.processPageRaw(new URL(res.headers.location, url).href)

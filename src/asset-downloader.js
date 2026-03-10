@@ -14,6 +14,7 @@ class AssetDownloader {
     this.assetManifest = assetManifest;
     this.logger = logger;
     this.pendingCssSubAssets = []; // URLs discovered inside CSS files
+    this.failedAssets = new Set(); // Track failed asset URLs to avoid retries
   }
 
   /**
@@ -21,9 +22,12 @@ class AssetDownloader {
    * Returns sub-asset URLs if the asset is a CSS file.
    */
   async download(assetUrl) {
-    // Skip if already downloaded
+    // Skip if already downloaded or previously failed
     const normalized = assetUrl;
     if (this.assetManifest.has(normalized)) {
+      return [];
+    }
+    if (this.failedAssets.has(normalized)) {
       return [];
     }
 
@@ -64,6 +68,7 @@ class AssetDownloader {
       this.logger.assetSaved(assetUrl, result.deduplicated);
       return [];
     } catch (err) {
+      this.failedAssets.add(normalized);
       this.logger.warn(`Failed to download asset: ${assetUrl} - ${err.message}`);
       return [];
     }
@@ -126,6 +131,10 @@ class AssetDownloader {
         timeout: this.config.timeout,
         headers: {},
       };
+
+      if (this.config.ignoreSslErrors) {
+        options.rejectUnauthorized = false;
+      }
 
       if (this.config.userAgent) {
         options.headers['User-Agent'] = this.config.userAgent;
